@@ -1,0 +1,21 @@
+{
+  "name": "superchat-crawler",
+  "version": "0.0.1",
+  "description": "Tool for capturing Superchat in Youtube.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node src/main.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/puppeteer": "^5.4.2",
+    "puppeteer": "^5.5.0",
+    "yaml": "^1.10.0"
+  },
+  "devDependencies": {
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.3"
+  }
+}

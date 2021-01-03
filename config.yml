@@ -1,0 +1,23 @@
+channels:
+  - 'UCdn5BQ06XqgXoAxIhbqw5Rg'
+  - 'UC1opHUrw8rvnsadT-iGp7Cg'
+  - 'UC1DCedRgGHBdm81E1llLhOQ'
+  - 'UCqm3BQLlJfvkTsX_hvm0UmA'
+  - 'UCvaTdHTWBGv3MKj3KVqJVCw'
+  - 'UCdYR5Oyz8Q4g0ZmB4PkTD7g'
+  - 'UChAnqc_AY5_I3Px5dig3X1Q'
+
+window:
+  width: 1440
+  height: 780
+
+network:
+  period:
+    check_live: 300000
+    capture: 120000
+
+  timeout: 300000
+
+capture:
+  anonymous: true
+  directory: 'output'
