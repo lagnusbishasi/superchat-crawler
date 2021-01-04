@@ -1,6 +1,6 @@
 {
   "name": "superchat-crawler",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "description": "Tool for capturing Superchat in Youtube.",
   "main": "index.js",
   "scripts": {

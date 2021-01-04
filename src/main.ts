@@ -2,18 +2,13 @@ import * as puppeteer from 'puppeteer';
 import * as readline from 'readline';
 
 import { ChatObserver } from './observer';
+import { createDirectoryIfNotExist } from './file-system';
 import config from './skhema';
 
 const CHANNELS = config.channels;
+const CAPTURE_DIRECTORY = config.capture.directory;
 
-async function activateObserver(observer : ChatObserver) {
-  while (observer.liveStatus !== 'KILLED') {
-    await observer.waitForLive();
-    await observer.openLiveStream();
-
-    await observer.observeChatToCollectSuperChat();
-  }
-}
+const OBSERVER_ACTIVATION_DELAY = config.network.period.activation;
 
 async function createUserInterfase() {
   const rl = readline.createInterface({
@@ -31,17 +26,17 @@ async function createUserInterfase() {
 }
 
 (async () => {
+  createDirectoryIfNotExist(CAPTURE_DIRECTORY);
+
   const browser = await puppeteer.launch({
-    headless: false
+    headless: false,
+    args: [`--window-size=${config.window.width},${config.window.height}`]
   });
 
-  await Promise.all(CHANNELS.map(async (channel : string) => {
-    const chatObserver = new ChatObserver(browser, channel);
+  const chatObservers = CHANNELS.map((channel : string) => new ChatObserver(browser, channel))
 
-    await chatObserver.waitForLive();
-    await chatObserver.openLiveStream();
-
-    await chatObserver.observeChatToCollectSuperChat();
+  await Promise.all(chatObservers.map(async (co : ChatObserver, idx : number) => {
+    await co.observe(idx * OBSERVER_ACTIVATION_DELAY)
   }))
 
   await browser.close();

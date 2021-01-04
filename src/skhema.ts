@@ -7,6 +7,7 @@ const CONFIG_PATH = './config.yml';
 const config = loadConfig();
 
 interface Config {
+  language: string,
   channels: Array<string>,
   window: {
     width: number,
@@ -14,6 +15,7 @@ interface Config {
   },
   network: {
     period: {
+      activation: number,
       check_live: number,
       capture: number
     },
@@ -21,7 +23,8 @@ interface Config {
   },
   capture: {
     anonymous: boolean,
-    directory: string
+    directory: string,
+    margin_time: number
   }
 }
 

@@ -1,11 +1,21 @@
+language: en
+
 channels:
-  - 'UCdn5BQ06XqgXoAxIhbqw5Rg'
-  - 'UC1opHUrw8rvnsadT-iGp7Cg'
-  - 'UC1DCedRgGHBdm81E1llLhOQ'
-  - 'UCqm3BQLlJfvkTsX_hvm0UmA'
-  - 'UCvaTdHTWBGv3MKj3KVqJVCw'
-  - 'UCdYR5Oyz8Q4g0ZmB4PkTD7g'
-  - 'UChAnqc_AY5_I3Px5dig3X1Q'
+  - UCdn5BQ06XqgXoAxIhbqw5Rg
+  - UC1opHUrw8rvnsadT-iGp7Cg
+  - UC1DCedRgGHBdm81E1llLhOQ
+  - UCqm3BQLlJfvkTsX_hvm0UmA
+  - UCvaTdHTWBGv3MKj3KVqJVCw
+  - UCdYR5Oyz8Q4g0ZmB4PkTD7g
+  - UChAnqc_AY5_I3Px5dig3X1Q
+  - UCPvGypSgfDkVe7JG2KygK7A
+  - UCl_gCybOJRIgOXw6Qb4qJzQ
+  - UCajhBT4nMrg3DLS-bLL2RCg
+  - UCUKD-uaobj9jiqB-VXt71mA
+  - UC1uv2Oq6kNxgATlCiez59hw
+  - UCa9Y57gfeY0Zro_noHRVrnw
+  - UC1CfXB_kRs3C-zaeTG3oGyg
+  - UCXTpFs_3PqI41qX2d9tL2Rw
 
 window:
   width: 1440
@@ -13,11 +23,13 @@ window:
 
 network:
   period:
+    activation: 2500
     check_live: 300000
-    capture: 120000
+    capture: 60000
 
   timeout: 300000
 
 capture:
   anonymous: true
-  directory: 'output'
+  directory: output
+  margin_time: 300

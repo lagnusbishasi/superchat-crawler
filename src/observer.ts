@@ -2,6 +2,7 @@ import { Browser, Page, Frame, ElementHandle } from 'puppeteer';
 
 import fileSystem from './file-system';
 import config from './skhema';
+import lang from './lib/i18n/index';
 
 const DEFAULT_WIDTH = config.window.width;
 const DEFAULT_HEIGHT = config.window.height;
@@ -12,19 +13,31 @@ const CAPTURE_MARGIN = config.network.period.capture;
 
 const MAKE_ANONYMOUS = config.capture.anonymous;
 const CAPTURE_DIRECTORY = config.capture.directory;
+const CAPTURE_MARGIN_TIME = config.capture.margin_time;
 
 // HardLimit CONSTANT
 const BLUR_AMOUNT = 3;
 
 // Elems CONSTANT
+const CHANNEL_NAME_SELECTOR = '#text.ytd-channel-name';
+
 const LIVE_BADGE_SELECTOR = '[overlay-style="LIVE"]';
 const CHAT_IFRAME_SELECTOR = '#chatframe';
+
 const SUPERCHAT_CONTAINER_SELECTOR = '#container .yt-live-chat-ticker-renderer';
+const SUPERCHAT_UNPAIED_MESSAGE_SELECTOR = '#contents yt-live-chat-text-message-renderer';
 const SUPERCHAT_ITEM_SELECTOR = 'yt-live-chat-ticker-paid-message-item-renderer';
+const SUPERCHAT_RENDERER_SELECTOR = '#message';
 const SUPERCHAT_CARD_SELECTOR = '#message .yt-live-chat-paid-message-renderer';
 const SUPERCHAT_CARD_AUTHOR_SELECTOR = '#author-name';
 const SUPERCHAT_CARD_IMAGE_SELECTOR = '#author-photo';
 
+const POPOVER_SELECTOR = '#contentWrapper .ytd-popup-container';
+
+// Title CONSTANT
+const YOUTUBE_SUFFIX = ' - YouTube';
+
+// URL CONSTANT
 const YOUTUBE_CHANNEL_URL_BASE = 'https://www.youtube.com/channel/'
 
 type LiveStatus = 'NOT_LIVE' | 'WATCHING' | 'LIVE' | 'KILLED';
@@ -49,6 +62,7 @@ export class ChannelExplorer {
   private config : ChannelExplorerConfig;
 
   protected page? : Page;
+  protected channelName : string;
   protected streamTitle : string;
   protected streamId? : string;
 
@@ -74,6 +88,8 @@ export class ChannelExplorer {
         break;
 
       await sleep(CHECK_LIVE_MARGIN_MS)
+
+      this._reload();
     }
 
     return true
@@ -81,15 +97,24 @@ export class ChannelExplorer {
 
   async openLiveStream() {
     if (!this.streamURL)
-      return console.error('There is no live stream this channel hosting.'), undefined
+      return console.error(lang.There_is_no_live_stream_this_channel_hosting), undefined
 
     await this.page.goto(this.streamURL);
 
-    this.streamTitle = await this.page.title();
+    const fullStreamTitle = await this.page.title();
+    this.streamTitle = fullStreamTitle.split(YOUTUBE_SUFFIX)[0];
+
+    console.log(`[${this.channelName}] started streaming: ${this.streamTitle}`);
   }
 
   terminate() {
     this.liveStatus = 'KILLED';
+  }
+
+  private async _reload() {
+    await this.page.reload({
+      waitUntil: ["networkidle0", "domcontentloaded"]
+    });
   }
 
   private _prepareConfig(config : ChannelExplorerConfig) : ChannelExplorerConfig {
@@ -118,12 +143,12 @@ export class ChannelExplorer {
     const overlay = node.parentElement;
 
     if (overlay && overlay.id != 'overlays')
-      throw new Error(`E_sO1: Youtube structure is changed. This tool requires update as well. Please notify that via github issue.`)
+      throw new Error(lang.Youtube_DOM_structure_is_updated)
 
     const thumbnail = overlay.parentElement;
 
     if (thumbnail && thumbnail.id != 'thumbnail')
-      throw new Error(`E_sO2: Youtube structure is changed. This tool requires update as well. Please notify that via github issue.`)
+      throw new Error(lang.Youtube_DOM_structure_is_updated)
 
     const relativeStreamURL = thumbnail.getAttribute('href');
 
@@ -151,7 +176,7 @@ export class ChannelExplorer {
 
   private _getIdOfLiveStream() {
     if (!this.streamURL)
-      return console.error('This page does not play stream.'), undefined
+      return console.error(lang.Something_went_wrong), undefined
 
     const url = new URL(this.streamURL);
     const params = new URLSearchParams(url.search);
@@ -162,11 +187,19 @@ export class ChannelExplorer {
   private async _gotoChannel() {
     await this._preparePage();
     await this.page.goto(this.channelURL);
+
+    const channelName = await this.page.waitForSelector(CHANNEL_NAME_SELECTOR);
+
+    this.channelName = await channelName.evaluate((node : Element) => {
+      if (node instanceof HTMLElement)
+        return node.innerText
+    })
   }
 }
 
 export class ChatObserver extends ChannelExplorer {
   private streamDirectory : string;
+  private cachedUnpaidMessageId : string;
   private cachedSuperChat : Map<string, boolean>;
   private chatFrame : Frame;
   private chatTicketRenderer : ElementHandle;
@@ -177,15 +210,28 @@ export class ChatObserver extends ChannelExplorer {
     this.cachedSuperChat = new Map();
   }
 
-  async observeChatToCollectSuperChat() {
+  async observe(waitTime : number) {
+    await sleep(waitTime);
+
+    while (this.liveStatus !== 'KILLED') {
+      await this.waitForLive();
+      await this.openLiveStream();
+
+      await this._observeChatToCollectSuperChat();
+    }
+  }
+
+  async _observeChatToCollectSuperChat() {
     if (!this.page.url().includes('watch'))
-      return console.error('This page does not play any stream to get superchat of.')
+      return console.error(lang.This_page_does_not_play_stream)
 
     this._generateStreamDirectory();
 
     const chatIframe = await this.page.waitForSelector(CHAT_IFRAME_SELECTOR);
     this.chatFrame = await chatIframe.contentFrame();
     this.chatTicketRenderer = await this.chatFrame.waitForSelector(SUPERCHAT_CONTAINER_SELECTOR);
+
+    this._popoverBlocker();
 
     if (MAKE_ANONYMOUS)
       this._makeAnonymous();
@@ -194,7 +240,30 @@ export class ChatObserver extends ChannelExplorer {
       await this._collectSuperChat();
 
       await sleep(CAPTURE_MARGIN);
+
+      await this._checkStreamStillOnLiveByChat();
     }
+  }
+
+  // Check if the stream is still on live by checking the content of chat is refreshed.
+  // TODO: Invent more precise way to observe it.
+  private async _checkStreamStillOnLiveByChat() {
+    const unpaidMessages = await this.chatFrame.$$(SUPERCHAT_UNPAIED_MESSAGE_SELECTOR);
+
+    const newId = await unpaidMessages[unpaidMessages.length - 1].evaluate((node : Element) => {
+      if (node instanceof HTMLElement)
+        return node.id
+    });
+
+    if (this.cachedUnpaidMessageId !== newId) {
+      this.cachedUnpaidMessageId = newId;
+      return undefined
+    }
+
+    this.cachedUnpaidMessageId = undefined;
+    this.liveStatus = 'NOT_LIVE';
+
+    console.log(`[${this.channelName}] stopped streaming: ${this.streamTitle}`);
   }
 
   private _generateStreamDirectory() {
@@ -207,8 +276,6 @@ export class ChatObserver extends ChannelExplorer {
   // SuperChat that displays in chat is not consistant 'cause it could disappears pretty fast when stupid chat messages are spammed.
   private async _collectSuperChat() {
     const badges = await this.chatTicketRenderer.$$(SUPERCHAT_ITEM_SELECTOR);
-
-    console.log(`Checked on ${this.streamTitle}`)
 
     // This procedure cannot be concurrent 'cause including click and capture process.
     for (const badge of badges) {
@@ -223,19 +290,36 @@ export class ChatObserver extends ChannelExplorer {
       await this.page.bringToFront();
       await badge.click();
 
+      const renderer = await this.chatFrame.waitForSelector(SUPERCHAT_RENDERER_SELECTOR);
       const card = await this.chatFrame.waitForSelector(SUPERCHAT_CARD_SELECTOR);
-
-      if (!card)
-        console.error('The card won\'t show up.')
+      if (!renderer || !card) {
+        console.error(lang.Something_went_wrong);
+        continue;
+      }
 
       const filePath = `${this.streamDirectory}/${superChatId}.png`;
 
       card.screenshot({ path: filePath })
 
-      console.log(`Caputered as ${filePath}`);
+      console.log(`- Captured SuperChat as ${filePath}`);
+
+      await renderer.evaluate((node : Element) => {
+        if (node instanceof HTMLElement)
+          node.removeChild(node.firstElementChild);
+      })
 
       this.cachedSuperChat.set(superChatId, true);
     }
+  }
+
+  private async _popoverBlocker() {
+    this.page.addStyleTag({
+      content: `
+        ${POPOVER_SELECTOR} {
+          display: none !important;
+        }
+      `
+    })
   }
 
   private async _makeAnonymous() {
@@ -247,10 +331,5 @@ export class ChatObserver extends ChannelExplorer {
         }
       `
     })
-  }
-
-  private _makeBlur(node : Element) {
-    if (node instanceof HTMLElement)
-      node.style.transform = `blur(3px)`;
   }
 }
