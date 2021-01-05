@@ -24,7 +24,6 @@ interface Config {
   capture: {
     anonymous: boolean,
     directory: string,
-    margin_time: number
   }
 }
 

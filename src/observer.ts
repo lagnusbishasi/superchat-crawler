@@ -13,7 +13,6 @@ const CAPTURE_MARGIN = config.network.period.capture;
 
 const MAKE_ANONYMOUS = config.capture.anonymous;
 const CAPTURE_DIRECTORY = config.capture.directory;
-const CAPTURE_MARGIN_TIME = config.capture.margin_time;
 
 // HardLimit CONSTANT
 const BLUR_AMOUNT = 3;
@@ -82,6 +81,8 @@ export class ChannelExplorer {
     this.liveStatus = 'WATCHING';
 
     while (this.liveStatus == 'WATCHING') {
+      this._deleteAutoPlayVideos();
+
       const isLive = await this._checkIsLive();
 
       if (isLive)
@@ -109,6 +110,16 @@ export class ChannelExplorer {
 
   terminate() {
     this.liveStatus = 'KILLED';
+  }
+
+  private async _deleteAutoPlayVideos() {
+    const videos = await this.page.$$('video');
+
+    for (const video of videos) {
+      await video.evaluate((node : Element) => {
+        node.parentElement.removeChild(node);
+      })
+    }
   }
 
   private async _reload() {

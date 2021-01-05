@@ -16,6 +16,8 @@ channels:
   - UCa9Y57gfeY0Zro_noHRVrnw
   - UC1CfXB_kRs3C-zaeTG3oGyg
   - UCXTpFs_3PqI41qX2d9tL2Rw
+  - UCFKOVgVbGmX65RxO3EtH3iw
+  - UCQ0UDLQCjY0rmuxCDE38FGg
 
 window:
   width: 1440
@@ -23,7 +25,7 @@ window:
 
 network:
   period:
-    activation: 2500
+    activation: 1500
     check_live: 300000
     capture: 60000
 
@@ -32,4 +34,3 @@ network:
 capture:
   anonymous: true
   directory: output
-  margin_time: 300
