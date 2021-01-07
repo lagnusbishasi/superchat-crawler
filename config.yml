@@ -32,5 +32,8 @@ network:
   timeout: 300000
 
 capture:
+  font: 
+    name: "'Kosugi Maru'"
+    url: '//fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap'
   anonymous: true
   directory: output

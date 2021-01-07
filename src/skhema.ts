@@ -22,6 +22,10 @@ interface Config {
     timeout: number
   },
   capture: {
+    font?: {
+      name?: string,
+      url?: string
+    }
     anonymous: boolean,
     directory: string,
   }

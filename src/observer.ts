@@ -12,6 +12,8 @@ const CHECK_LIVE_MARGIN_MS = config.network.period.check_live;
 const CAPTURE_MARGIN = config.network.period.capture;
 
 const MAKE_ANONYMOUS = config.capture.anonymous;
+const FONT_OVERIDE_NAME = config.capture.font.name;
+const FONT_OVERIDE_URL = config.capture.font.url;
 const CAPTURE_DIRECTORY = config.capture.directory;
 
 // HardLimit CONSTANT
@@ -88,9 +90,9 @@ export class ChannelExplorer {
       if (isLive)
         break;
 
-      await sleep(CHECK_LIVE_MARGIN_MS)
+      await this.page.waitForTimeout(CHECK_LIVE_MARGIN_MS)
 
-      this._reload();
+      await this._reload();
     }
 
     return true
@@ -113,19 +115,19 @@ export class ChannelExplorer {
   }
 
   private async _deleteAutoPlayVideos() {
-    const videos = await this.page.$$('video');
+    const videos = await this.page.$$('video')
+      .catch(() => []);
 
     for (const video of videos) {
-      await video.evaluate((node : Element) => {
+      video.evaluate((node : Element) => {
         node.parentElement.removeChild(node);
       })
     }
   }
 
   private async _reload() {
-    await this.page.reload({
-      waitUntil: ["networkidle0", "domcontentloaded"]
-    });
+    await this.page.reload({ waitUntil: ["networkidle0", "domcontentloaded"] })
+      .catch(() => { console.error(lang.Something_went_wrong) })
   }
 
   private _prepareConfig(config : ChannelExplorerConfig) : ChannelExplorerConfig {
@@ -247,10 +249,13 @@ export class ChatObserver extends ChannelExplorer {
     if (MAKE_ANONYMOUS)
       this._makeAnonymous();
 
+    if (FONT_OVERIDE_NAME)
+      this._overideFont();
+
     while (this.liveStatus == 'LIVE') {
       await this._collectSuperChat();
 
-      await sleep(CAPTURE_MARGIN);
+      await this.page.waitForTimeout(CAPTURE_MARGIN);
 
       await this._checkStreamStillOnLiveByChat();
     }
@@ -334,11 +339,28 @@ export class ChatObserver extends ChannelExplorer {
   }
 
   private async _makeAnonymous() {
-    this.chatFrame.addStyleTag({
+    await this.chatFrame.addStyleTag({
       content: `
         ${SUPERCHAT_CARD_IMAGE_SELECTOR},
         ${SUPERCHAT_CARD_AUTHOR_SELECTOR} {
           filter: blur(${BLUR_AMOUNT}px);
+        }
+      `
+    })
+  }
+
+  private async _overideFont() {
+    const fontImport = FONT_OVERIDE_URL
+      ? `
+        @import url('${FONT_OVERIDE_URL}');
+      ` : ''
+
+    await this.chatFrame.addStyleTag({
+      content: `
+        ${fontImport}
+
+        ${SUPERCHAT_CARD_SELECTOR} {
+          font-family: ${FONT_OVERIDE_NAME}
         }
       `
     })
